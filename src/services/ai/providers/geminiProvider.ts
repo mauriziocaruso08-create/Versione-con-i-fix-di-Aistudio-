@@ -13,7 +13,7 @@ export class GeminiProvider implements AiProvider {
     this.apiKey = configured && configured !== 'MY_GEMINI_API_KEY' ? configured : undefined;
     this.models = options?.models?.length
       ? options.models
-      : ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+      : ['gemini-3.1-flash-lite', 'gemini-3.8-flash'];
   }
 
   isConfigured(): boolean {
@@ -33,26 +33,38 @@ export class GeminiProvider implements AiProvider {
     const lastError: { value?: unknown } = {};
 
     for (const modelId of this.models) {
-      try {
-        const response = await ai.models.generateContent({
-          model: modelId,
-          contents: request.messages.map((message) => ({
-            role: message.role,
-            parts: [{ text: message.content }],
-          })),
-          config: {
-            systemInstruction: request.systemInstruction,
-            temperature: request.temperature ?? 0.7,
-          },
-        });
+      // Retry up to 3 times for temporary 503 demand spikes on flash-lite
+      const maxAttempts = modelId === 'gemini-3.1-flash-lite' ? 3 : 1;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+          }
 
-        const text = response.text?.trim();
-        if (text) {
-          return { text, providerId: this.id, modelId };
+          const response = await ai.models.generateContent({
+            model: modelId,
+            contents: request.messages.map((message) => ({
+              role: message.role,
+              parts: [{ text: message.content }],
+            })),
+            config: {
+              systemInstruction: request.systemInstruction,
+              temperature: request.temperature ?? 0.7,
+            },
+          });
+
+          const text = response.text?.trim();
+          if (text) {
+            return { text, providerId: this.id, modelId };
+          }
+        } catch (error: any) {
+          lastError.value = error;
+          const is503 = error?.status === 503 || /503|high demand|UNAVAILABLE/i.test(error?.message || '');
+          if (is503 && attempt < maxAttempts - 1) {
+            continue;
+          }
+          break;
         }
-      } catch (error) {
-        lastError.value = error;
-        console.warn(`Gemini model ${modelId} non riuscito:`, error);
       }
     }
 

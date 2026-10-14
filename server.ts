@@ -232,7 +232,6 @@ app.post('/api/chat', async (req, res) => {
       modelRouter: modelRouter.getStatus(),
     });
   } catch (error: any) {
-    console.error('Errore durante la generazione tramite MAIA Model Router:', error);
     const errorMessage = error?.message || 'Errore di comunicazione con il provider AI.';
     const isQuota = /RESOURCE_EXHAUSTED|429|quota|rate.?limit/i.test(errorMessage);
     return res.status(isQuota ? 429 : 500).json({
@@ -283,6 +282,7 @@ Stai effettuando una ricerca web in tempo reale per rispondere alla richiesta de
     const searchModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
     let lastSearchError: any = null;
 
+    // 1. Attempt with real-time Google Search grounding
     for (const searchModel of searchModels) {
       try {
         response = await ai.models.generateContent({
@@ -296,12 +296,38 @@ Stai effettuando una ricerca web in tempo reale per rispondere alla richiesta de
         if (response?.text) break;
       } catch (err: any) {
         lastSearchError = err;
-        console.warn(`Search model ${searchModel} non riuscito:`, err?.message || err);
       }
     }
 
-    if (!response) {
-      throw lastSearchError || new Error('Impossibile completare la ricerca con i modelli disponibili.');
+    // 2. If search tool hit quota (429) or failed, fall back to generative knowledge synthesis
+    if (!response || !response.text) {
+      for (const searchModel of searchModels) {
+        try {
+          response = await ai.models.generateContent({
+            model: searchModel,
+            contents: cleanQuery,
+            config: {
+              systemInstruction: `${MAIA_SYSTEM_PROMPT}\n\n### RICHIESTA DI INFORMAZIONI:\nFornisci una sintesi chiara, accurata e aggiornata basata sui fatti accertati in merito alla richiesta. Se necessario, segnala che si tratta di dati di sintesi.`,
+              temperature: 0.7,
+            },
+          });
+          if (response?.text) break;
+        } catch (err: any) {
+          lastSearchError = err;
+        }
+      }
+    }
+
+    if (!response || !response.text) {
+      const errorMessage = lastSearchError?.message || 'Nessun risultato disponibile per questa ricerca.';
+      const isQuota = /RESOURCE_EXHAUSTED|429|quota/i.test(errorMessage);
+      return res.status(isQuota ? 429 : 500).json({
+        success: false,
+        error: isQuota
+          ? 'Quota API Gemini esaurita (errore 429).'
+          : `Errore durante la ricerca: ${errorMessage}`,
+        isQuota,
+      });
     }
 
     const summary = response.text?.trim() || 'Nessun risultato rilevante trovato per questa ricerca.';
@@ -336,14 +362,13 @@ Stai effettuando una ricerca web in tempo reale per rispondere alla richiesta de
       sources,
     });
   } catch (error: any) {
-    console.error('Errore durante la ricerca web con Gemini:', error);
-    const errorMessage = error?.message || 'Errore durante la ricerca web.';
+    const errorMessage = error?.message || 'Errore durante la ricerca.';
     const isQuota = /RESOURCE_EXHAUSTED|429|quota/i.test(errorMessage);
     return res.status(isQuota ? 429 : 500).json({
       success: false,
       error: isQuota
         ? 'Quota API Gemini esaurita (errore 429).'
-        : `Errore durante la ricerca web: ${errorMessage}`,
+        : `Errore durante la ricerca: ${errorMessage}`,
       isQuota,
     });
   }
