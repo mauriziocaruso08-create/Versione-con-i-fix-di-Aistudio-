@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "description": "MAIA regression suite. Tests enter this list only after real validation.",
+  "regressionTests": [
+    "test_v71_core_hardening_2026_10_08.ts",
+    "test_abbreviated_reminder.ts",
+    "test_clarification_continuation.ts",
+    "test_context_continuity_hardening.ts",
+    "test_context_intent_hardening_v72.ts",
+    "test_contextual_followups.ts",
+    "test_final_regression.ts",
+    "test_intent_engine.ts",
+    "test_learning_preferences.ts",
+    "test_missing_param_continuation.ts",
+    "test_note_synonyms.ts",
+    "test_personal_memory_intent_v2.ts",
+    "test_polite_local_actions.ts",
+    "test_provider_manager.ts",
+    "test_reminder_read_variants.ts",
+    "test_roadmap_integration_v3.ts",
+    "test_safety_confirmation.ts",
+    "test_self_correction.ts",
+    "test_v67_hardening.ts",
+    "test_v71_cumulative_2026_10_07.ts",
+    "test_v71_regression_patch.ts",
+    "test_web_search_hardening.ts",
+    "test_wrappers.ts",
+    "test_v71_final_core_hardening.ts",
+    "test_project_manager.ts"
+  ],
+  "manualOnly": [
+    "UI/layout/responsive behavior",
+    "Memory screen visual behavior",
+    "shortcuts/navigation",
+    "orb/animations",
+    "voice input/output quality",
+    "chat UX and displayed wording",
+    "AI Studio Preview/runtime visual anomalies"
+  ]
+}

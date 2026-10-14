@@ -1,0 +1,6 @@
+{
+  "name": "MAIA - Personal AI Assistant",
+  "description": "A clean, modern, dark futuristic personal AI assistant app optimized for Android smartphones with voice and text capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
